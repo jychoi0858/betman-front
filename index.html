@@ -343,7 +343,7 @@
     // ===== 상태 관리 =====
     const state = {
       games: [],
-      selections: {}, // { gameId: { pick: 'win'|'draw'|'lose', odds: 1.85 } }
+      selections: {}, // { matchSeq: { pick: 'win'|'draw'|'lose', odds: 1.85 } }
     };
 
     // ===== 로컬 저장 (URL, ID만 - 비밀번호는 저장 안 함) =====
@@ -404,10 +404,11 @@
       `;
 
       state.games.forEach((game, i) => {
-        const sel = state.selections[game.gameId];
+        const sel = state.selections[game.matchSeq];
+        const showDraw = game.buttonCount === 3 || game.odds?.draw > 0;
         html += `
           <tr>
-            <td>${i + 1}</td>
+            <td>${game.matchSeq}</td>
             <td><span class="league-badge">${game.league}</span></td>
             <td class="team-name">${game.home}</td>
             <td class="vs">vs</td>
@@ -416,15 +417,15 @@
             <td>
               <div class="pick-group">
                 <button class="pick-btn ${sel?.pick === 'win' ? 'selected-win' : ''}"
-                  onclick="togglePick('${game.gameId}', 'win', ${game.odds?.win || 0})">
+                  onclick="togglePick('${game.matchSeq}', 'win', ${game.odds?.win || 0})">
                   승<div class="odds">${game.odds?.win || '-'}</div>
                 </button>
-                <button class="pick-btn ${sel?.pick === 'draw' ? 'selected-draw' : ''}"
-                  onclick="togglePick('${game.gameId}', 'draw', ${game.odds?.draw || 0})">
+                ${showDraw ? `<button class="pick-btn ${sel?.pick === 'draw' ? 'selected-draw' : ''}"
+                  onclick="togglePick('${game.matchSeq}', 'draw', ${game.odds?.draw || 0})">
                   무<div class="odds">${game.odds?.draw || '-'}</div>
-                </button>
+                </button>` : ''}
                 <button class="pick-btn ${sel?.pick === 'lose' ? 'selected-lose' : ''}"
-                  onclick="togglePick('${game.gameId}', 'lose', ${game.odds?.lose || 0})">
+                  onclick="togglePick('${game.matchSeq}', 'lose', ${game.odds?.lose || 0})">
                   패<div class="odds">${game.odds?.lose || '-'}</div>
                 </button>
               </div>
@@ -474,15 +475,15 @@
       if (entries.length === 0) return alert('경기를 선택해주세요');
       if (amount < 100) return alert('최소 100원 이상 입력해주세요');
 
-      const selections = entries.map(([gameId, v]) => ({
-        gameId,
+      const selections = entries.map(([matchSeq, v]) => ({
+        matchSeq,
         pick: v.pick,
       }));
 
       // 확인
       const pickNames = { win: '승', draw: '무', lose: '패' };
       const summary = selections.map(s => {
-        const game = state.games.find(g => g.gameId === s.gameId);
+        const game = state.games.find(g => g.matchSeq === s.matchSeq);
         return `${game?.home} vs ${game?.away}: ${pickNames[s.pick]}`;
       }).join('\n');
 

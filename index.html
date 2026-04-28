@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>프로토 승부식 배팅</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, 'Malgun Gothic', sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #1e3a5f, #0f172a);
+      padding: 20px 24px;
+      border-bottom: 2px solid #3b82f6;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header h1 {
+      font-size: 22px;
+      color: #60a5fa;
+    }
+
+    .header .status {
+      font-size: 13px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      background: #1e293b;
+    }
+
+    .status.connected { color: #4ade80; }
+    .status.disconnected { color: #f87171; }
+
+    .config-bar {
+      background: #1e293b;
+      padding: 16px 24px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .config-bar label {
+      font-size: 13px;
+      color: #94a3b8;
+    }
+
+    .config-bar input {
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #e2e8f0;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      width: 260px;
+    }
+
+    .config-bar button {
+      padding: 8px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .btn-fetch {
+      background: #3b82f6;
+      color: white;
+    }
+
+    .btn-fetch:hover { background: #2563eb; }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .round-info {
+      margin-bottom: 16px;
+      font-size: 14px;
+      color: #94a3b8;
+    }
+
+    /* 경기 테이블 */
+    .games-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 24px;
+    }
+
+    .games-table thead th {
+      background: #1e293b;
+      padding: 12px 8px;
+      text-align: center;
+      font-size: 13px;
+      color: #94a3b8;
+      border-bottom: 2px solid #334155;
+    }
+
+    .games-table tbody tr {
+      border-bottom: 1px solid #1e293b;
+      transition: background 0.15s;
+    }
+
+    .games-table tbody tr:hover {
+      background: #1e293b44;
+    }
+
+    .games-table td {
+      padding: 12px 8px;
+      text-align: center;
+      font-size: 14px;
+    }
+
+    .team-name {
+      font-weight: 600;
+      color: #f1f5f9;
+    }
+
+    .league-badge {
+      font-size: 11px;
+      background: #334155;
+      padding: 3px 8px;
+      border-radius: 10px;
+      color: #94a3b8;
+    }
+
+    .vs { color: #475569; font-size: 12px; }
+
+    /* 승무패 선택 버튼 */
+    .pick-group {
+      display: flex;
+      gap: 4px;
+      justify-content: center;
+    }
+
+    .pick-btn {
+      padding: 8px 14px;
+      border: 2px solid #334155;
+      background: transparent;
+      color: #94a3b8;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.15s;
+      min-width: 44px;
+    }
+
+    .pick-btn:hover {
+      border-color: #60a5fa;
+      color: #60a5fa;
+    }
+
+    .pick-btn.selected-win {
+      background: #3b82f6;
+      border-color: #3b82f6;
+      color: white;
+    }
+
+    .pick-btn.selected-draw {
+      background: #8b5cf6;
+      border-color: #8b5cf6;
+      color: white;
+    }
+
+    .pick-btn.selected-lose {
+      background: #ef4444;
+      border-color: #ef4444;
+      color: white;
+    }
+
+    .odds {
+      font-size: 12px;
+      color: #64748b;
+      margin-top: 2px;
+    }
+
+    /* 하단 배팅 바 */
+    .bet-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: #1e293b;
+      border-top: 2px solid #3b82f6;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 100;
+    }
+
+    .bet-info {
+      display: flex;
+      gap: 24px;
+      align-items: center;
+    }
+
+    .bet-info span {
+      font-size: 14px;
+      color: #94a3b8;
+    }
+
+    .bet-info strong {
+      color: #60a5fa;
+    }
+
+    .amount-input {
+      background: #0f172a;
+      border: 1px solid #334155;
+      color: #e2e8f0;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 15px;
+      width: 140px;
+      text-align: right;
+    }
+
+    .btn-bet {
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      color: white;
+      border: none;
+      padding: 12px 32px;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+
+    .btn-bet:hover { transform: scale(1.03); }
+    .btn-bet:disabled {
+      background: #475569;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* 로그 패널 */
+    .log-panel {
+      margin-top: 16px;
+      margin-bottom: 100px;
+      background: #0c0f1a;
+      border: 1px solid #1e293b;
+      border-radius: 8px;
+      padding: 16px;
+      max-height: 200px;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .log-panel.show { display: block; }
+
+    .log-line {
+      font-family: monospace;
+      font-size: 12px;
+      color: #64748b;
+      padding: 2px 0;
+    }
+
+    .log-line.success { color: #4ade80; }
+    .log-line.error { color: #f87171; }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: #475569;
+    }
+
+    .empty-state p { margin-top: 8px; font-size: 14px; }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #64748b;
+    }
+
+    .spinner {
+      width: 32px;
+      height: 32px;
+      border: 3px solid #334155;
+      border-top-color: #3b82f6;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 12px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>⚽ 프로토 승부식</h1>
+    <span class="status disconnected" id="statusBadge">● 서버 미연결</span>
+  </div>
+
+  <div class="config-bar">
+    <label>서버 URL:</label>
+    <input type="text" id="serverUrl" placeholder="https://your-app.railway.app" style="width:220px" />
+    <label>Betman ID:</label>
+    <input type="text" id="betmanId" placeholder="아이디" style="width:120px" />
+    <label>PW:</label>
+    <input type="password" id="betmanPw" placeholder="비밀번호" style="width:120px" />
+    <button class="btn-fetch" onclick="fetchGames()">경기 불러오기</button>
+  </div>
+
+  <div class="container">
+    <div id="content">
+      <div class="empty-state">
+        <h2>🏟️</h2>
+        <p>서버 URL을 입력하고 "경기 불러오기"를 눌러주세요</p>
+      </div>
+    </div>
+
+    <div class="log-panel" id="logPanel"></div>
+  </div>
+
+  <div class="bet-bar">
+    <div class="bet-info">
+      <span>선택: <strong id="pickCount">0</strong>경기</span>
+      <span>예상 배당: <strong id="totalOdds">0.00</strong></span>
+      <span>
+        금액:
+        <input type="number" class="amount-input" id="betAmount" value="1000" min="100" step="100" />
+        원
+      </span>
+      <span>예상 당첨금: <strong id="expectedReturn">0</strong>원</span>
+    </div>
+    <button class="btn-bet" id="betBtn" onclick="submitBet()" disabled>배팅하기</button>
+  </div>
+
+  <script>
+    // ===== 상태 관리 =====
+    const state = {
+      games: [],
+      selections: {}, // { gameId: { pick: 'win'|'draw'|'lose', odds: 1.85 } }
+    };
+
+    // ===== 로컬 저장 (URL, ID만 - 비밀번호는 저장 안 함) =====
+    const savedUrl = localStorage.getItem('betman_server_url');
+    const savedId = localStorage.getItem('betman_user_id');
+    if (savedUrl) document.getElementById('serverUrl').value = savedUrl;
+    if (savedId) document.getElementById('betmanId').value = savedId;
+
+    // ===== 경기 불러오기 =====
+    async function fetchGames() {
+      const serverUrl = document.getElementById('serverUrl').value.trim();
+      if (!serverUrl) {
+        alert('서버 URL을 입력해주세요');
+        return;
+      }
+      localStorage.setItem('betman_server_url', serverUrl);
+      localStorage.setItem('betman_user_id', document.getElementById('betmanId').value.trim());
+
+      const content = document.getElementById('content');
+      content.innerHTML = '<div class="loading"><div class="spinner"></div>경기 정보를 불러오는 중...</div>';
+
+      try {
+        const res = await fetch(`${serverUrl}/api/games`);
+        const data = await res.json();
+
+        if (data.success && data.games.length > 0) {
+          state.games = data.games;
+          renderGames();
+          updateStatus(true);
+        } else {
+          content.innerHTML = '<div class="empty-state"><h2>📭</h2><p>현재 발매 중인 경기가 없습니다</p></div>';
+          updateStatus(true);
+        }
+      } catch (e) {
+        content.innerHTML = `<div class="empty-state"><h2>⚠️</h2><p>서버 연결 실패: ${e.message}</p></div>`;
+        updateStatus(false);
+      }
+    }
+
+    // ===== 경기 목록 렌더링 =====
+    function renderGames() {
+      const content = document.getElementById('content');
+      let html = `
+        <div class="round-info">총 ${state.games.length}경기</div>
+        <table class="games-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>리그</th>
+              <th>홈</th>
+              <th></th>
+              <th>원정</th>
+              <th>경기일시</th>
+              <th>승 / 무 / 패</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      state.games.forEach((game, i) => {
+        const sel = state.selections[game.gameId];
+        html += `
+          <tr>
+            <td>${i + 1}</td>
+            <td><span class="league-badge">${game.league}</span></td>
+            <td class="team-name">${game.home}</td>
+            <td class="vs">vs</td>
+            <td class="team-name">${game.away}</td>
+            <td>${game.date || '-'}</td>
+            <td>
+              <div class="pick-group">
+                <button class="pick-btn ${sel?.pick === 'win' ? 'selected-win' : ''}"
+                  onclick="togglePick('${game.gameId}', 'win', ${game.odds?.win || 0})">
+                  승<div class="odds">${game.odds?.win || '-'}</div>
+                </button>
+                <button class="pick-btn ${sel?.pick === 'draw' ? 'selected-draw' : ''}"
+                  onclick="togglePick('${game.gameId}', 'draw', ${game.odds?.draw || 0})">
+                  무<div class="odds">${game.odds?.draw || '-'}</div>
+                </button>
+                <button class="pick-btn ${sel?.pick === 'lose' ? 'selected-lose' : ''}"
+                  onclick="togglePick('${game.gameId}', 'lose', ${game.odds?.lose || 0})">
+                  패<div class="odds">${game.odds?.lose || '-'}</div>
+                </button>
+              </div>
+            </td>
+          </tr>
+        `;
+      });
+
+      html += '</tbody></table>';
+      content.innerHTML = html;
+    }
+
+    // ===== 승무패 선택/해제 =====
+    function togglePick(gameId, pick, odds) {
+      if (state.selections[gameId]?.pick === pick) {
+        delete state.selections[gameId]; // 같은 거 다시 누르면 해제
+      } else {
+        state.selections[gameId] = { pick, odds };
+      }
+      renderGames();
+      updateBetBar();
+    }
+
+    // ===== 하단 배팅 바 업데이트 =====
+    function updateBetBar() {
+      const entries = Object.entries(state.selections);
+      const count = entries.length;
+      const totalOdds = entries.reduce((acc, [, v]) => acc * v.odds, count > 0 ? 1 : 0);
+      const amount = parseInt(document.getElementById('betAmount').value) || 0;
+
+      document.getElementById('pickCount').textContent = count;
+      document.getElementById('totalOdds').textContent = totalOdds.toFixed(2);
+      document.getElementById('expectedReturn').textContent =
+        Math.floor(totalOdds * amount).toLocaleString();
+      document.getElementById('betBtn').disabled = count === 0;
+    }
+
+    // 금액 변경 시 업데이트
+    document.getElementById('betAmount').addEventListener('input', updateBetBar);
+
+    // ===== 배팅 제출 =====
+    async function submitBet() {
+      const serverUrl = document.getElementById('serverUrl').value.trim();
+      const entries = Object.entries(state.selections);
+      const amount = parseInt(document.getElementById('betAmount').value) || 0;
+
+      if (entries.length === 0) return alert('경기를 선택해주세요');
+      if (amount < 100) return alert('최소 100원 이상 입력해주세요');
+
+      const selections = entries.map(([gameId, v]) => ({
+        gameId,
+        pick: v.pick,
+      }));
+
+      // 확인
+      const pickNames = { win: '승', draw: '무', lose: '패' };
+      const summary = selections.map(s => {
+        const game = state.games.find(g => g.gameId === s.gameId);
+        return `${game?.home} vs ${game?.away}: ${pickNames[s.pick]}`;
+      }).join('\n');
+
+      const userId = document.getElementById('betmanId').value.trim();
+      const userPw = document.getElementById('betmanPw').value.trim();
+
+      if (!userId || !userPw) {
+        return alert('Betman 아이디와 비밀번호를 입력해주세요');
+      }
+
+      if (!confirm(`배팅을 진행하시겠습니까?\n\n${summary}\n\n금액: ${amount.toLocaleString()}원`)) {
+        return;
+      }
+
+      // 로그 패널 표시
+      const logPanel = document.getElementById('logPanel');
+      logPanel.classList.add('show');
+      logPanel.innerHTML = '<div class="log-line">배팅 요청 전송 중...</div>';
+
+      document.getElementById('betBtn').disabled = true;
+      document.getElementById('betBtn').textContent = '처리 중...';
+
+      try {
+        const res = await fetch(`${serverUrl}/api/bet`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ selections, amount, userId, userPw }),
+        });
+        const data = await res.json();
+
+        if (data.success && data.result) {
+          const logs = data.result.logs || [];
+          logPanel.innerHTML = logs.map(log =>
+            `<div class="log-line ${data.result.status === 'error' ? 'error' : 'success'}">${log}</div>`
+          ).join('');
+
+          if (data.result.status === 'completed') {
+            logPanel.innerHTML += '<div class="log-line success">✅ 배팅 완료!</div>';
+          } else {
+            logPanel.innerHTML += '<div class="log-line error">⚠️ 배팅 중 문제 발생 - 로그를 확인하세요</div>';
+          }
+        } else {
+          logPanel.innerHTML = `<div class="log-line error">❌ 오류: ${data.error}</div>`;
+        }
+      } catch (e) {
+        logPanel.innerHTML = `<div class="log-line error">❌ 서버 통신 실패: ${e.message}</div>`;
+      }
+
+      document.getElementById('betBtn').disabled = false;
+      document.getElementById('betBtn').textContent = '배팅하기';
+    }
+
+    // ===== 서버 상태 표시 =====
+    function updateStatus(connected) {
+      const badge = document.getElementById('statusBadge');
+      if (connected) {
+        badge.className = 'status connected';
+        badge.textContent = '● 서버 연결됨';
+      } else {
+        badge.className = 'status disconnected';
+        badge.textContent = '● 서버 미연결';
+      }
+    }
+  </script>
+</body>
+</html>
